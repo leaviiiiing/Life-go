@@ -36,6 +36,3 @@ docker compose -f deploy/docker-compose.yml up -d --build
 - **构建 `api` 时 `auth.docker.io` 超时**：`deploy/docker-compose.yml` 已对 `api` 构建传入 DaoCloud 上的 `golang` / `alpine` 基础镜像；若你更信任官方源，可改 `server/Dockerfile` 的默认 `ARG` 或在 compose 里把 `GO_BUILD_IMAGE` / `RUNTIME_IMAGE` 改为 `golang:1.22-alpine`、`alpine:3.19`。其余镜像仍走 Docker Hub，也可在 Docker Desktop → **Docker Engine** 里配置 `registry-mirrors`。
 - **端口占用**：若 80 / 8081 / 6379 / 9092 被占用，请在 `deploy/docker-compose.yml` 中调整对应 `ports` 映射。
 
-## 文档
-
-- Go 实现说明与代码导读：[server/docs/GO_DEVELOPMENT.md](server/docs/GO_DEVELOPMENT.md)
