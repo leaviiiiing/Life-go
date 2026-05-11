@@ -1,0 +1,24 @@
+{
+  "rules": [
+    {
+      "id": "dlt",
+      "keywords": ["死信", "DLT", "dlt", "dlq"],
+      "hint": "Kafka 消费失败会先经 voucher.order.retry 重试，仍失败则进 voucher.order.dlt，并写入 MySQL 表 tb_mq_kafka_log。排障见 docs/MQ_KAFKA_IMPLEMENTATION_REPORT.md；补偿可经 Nginx 调 GET /api/agent/reliability/failed-logs 或主后端 /mq/compensation/kafka/*。"
+    },
+    {
+      "id": "pending",
+      "keywords": ["PENDING", "pending", "卡住"],
+      "hint": "先看 tb_mq_kafka_log 中 CONSUME/FAILED 与 DLT；确认业务与 Redis 幂等键 mq:kafka:consumed:* 是否误挡重试。"
+    },
+    {
+      "id": "idempotent",
+      "keywords": ["幂等", "重复", "重复消费"],
+      "hint": "消费幂等使用头 IDEMPOTENT_KEY 对应 Redis 键 mq:kafka:consumed:{key}；HTTP 秒杀可带 Idempotency-Key。详见 MQ 实施报告。"
+    },
+    {
+      "id": "kafka",
+      "keywords": ["Kafka", "kafka", "重试"],
+      "hint": "主 Topic voucher.order.topic 与重试 Topic voucher.order.retry 由同一消费者组处理；生产者 enable.idempotence=true，手动 ack。"
+    }
+  ]
+}
