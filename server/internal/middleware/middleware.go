@@ -84,6 +84,17 @@ func PublicRoute(path, method string) bool {
 	if path == "/blog/hot" {
 		return true
 	}
+	// 与前端 blog-detail 对齐：匿名可查看点赞列表（Java MvcConfig 为 /likes/** 的兼容修正）
+	if method == http.MethodGet && strings.HasPrefix(path, "/blog/likes/") {
+		return true
+	}
+	// 匿名查看单篇笔记详情：GET /blog/{数字id}
+	if method == http.MethodGet && strings.HasPrefix(path, "/blog/") {
+		suf := strings.TrimPrefix(path, "/blog/")
+		if suf != "" && !strings.Contains(suf, "/") && isAllDigits(suf) {
+			return true
+		}
+	}
 	if strings.HasPrefix(path, "/likes/") {
 		return true
 	}
@@ -97,6 +108,15 @@ func PublicRoute(path, method string) bool {
 		return true
 	}
 	return false
+}
+
+func isAllDigits(s string) bool {
+	for i := 0; i < len(s); i++ {
+		if s[i] < '0' || s[i] > '9' {
+			return false
+		}
+	}
+	return s != ""
 }
 
 // LoginRequired aborts with 401 when no user in context (after TokenRefresh).

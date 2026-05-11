@@ -1,0 +1,114 @@
+# Life-go：单 Go 进程暴露 8081（主 API）+ 8082（Agent），Nginx 静态前端
+# 用法：在仓库根目录执行  docker compose -f deploy/docker-compose.yml up -d --build
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: life-go-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: "123456"
+      MYSQL_DATABASE: hmdp
+      TZ: Asia/Shanghai
+    command:
+      - --default-authentication-plugin=mysql_native_password
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./mysql/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-p123456"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+
+  redis:
+    image: redis:7-alpine
+    container_name: life-go-redis
+    restart: unless-stopped
+    command: ["redis-server", "--requirepass", "123456"]
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "123456", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+
+  kafka:
+    image: bitnami/kafka:3.6
+    container_name: life-go-kafka
+    restart: unless-stopped
+    environment:
+      KAFKA_CFG_NODE_ID: "1"
+      KAFKA_CFG_PROCESS_ROLES: controller,broker
+      KAFKA_CFG_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_CFG_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093
+      KAFKA_CFG_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      KAFKA_CFG_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_CFG_AUTO_CREATE_TOPICS_ENABLE: "true"
+      ALLOW_PLAINTEXT_LISTENER: "yes"
+    ports:
+      - "9092:9092"
+    volumes:
+      - kafka_data:/bitnami/kafka
+    healthcheck:
+      test: ["CMD", "bash", "-c", "echo > /dev/tcp/127.0.0.1/9092"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+
+  api:
+    build:
+      context: ../server
+      dockerfile: Dockerfile
+    container_name: life-go-api
+    restart: unless-stopped
+    environment:
+      MAIN_HTTP_ADDR: ":8081"
+      AGENT_HTTP_ADDR: ":8082"
+      MYSQL_DSN: "root:123456@tcp(mysql:3306)/hmdp?parseTime=true&loc=Asia%2FShanghai&charset=utf8mb4"
+      SPRING_REDIS_HOST: redis
+      SPRING_REDIS_PORT: "6379"
+      SPRING_REDIS_PASSWORD: "123456"
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      HMDP_UPLOAD_DIR: /data/uploads
+      TZ: Asia/Shanghai
+      AGENT_BACKEND_BASE_URL: "http://127.0.0.1:8081"
+      AGENT_LLM_API_KEY: ${AGENT_LLM_API_KEY:-}
+      AGENT_LLM_MODEL: ${AGENT_LLM_MODEL:-}
+    ports:
+      - "8081:8081"
+      - "8082:8082"
+    volumes:
+      - uploads:/data/uploads
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+
+  frontend:
+    image: nginx:1.27-alpine
+    container_name: life-go-frontend
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    volumes:
+      - ../frontend/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ../frontend/dist:/usr/share/nginx/html:ro
+      - uploads:/var/www/uploads:ro
+    depends_on:
+      - api
+
+volumes:
+  mysql_data:
+  redis_data:
+  kafka_data:
+  uploads:

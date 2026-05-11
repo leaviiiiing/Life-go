@@ -54,6 +54,7 @@ func (a *App) runVoucherOrderConsumer(ctx context.Context) {
 		}
 		lock, err := locker.Obtain(ctx, "lock:order:"+strconv.FormatInt(vo.UserID, 10), 30*time.Second, nil)
 		if errors.Is(err, redislock.ErrNotObtained) {
+			time.Sleep(20 * time.Millisecond)
 			continue
 		}
 		if err != nil {

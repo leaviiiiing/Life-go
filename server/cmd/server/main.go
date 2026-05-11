@@ -53,11 +53,11 @@ func main() {
 
 	gin.SetMode(gin.ReleaseMode)
 	mainEngine := gin.New()
-	mainEngine.Use(gin.Recovery())
+	mainEngine.Use(gin.Logger(), gin.Recovery())
 	application.RegisterMain(mainEngine)
 
 	agentEngine := gin.New()
-	agentEngine.Use(gin.Recovery())
+	agentEngine.Use(gin.Logger(), gin.Recovery())
 	application.RegisterAgent(agentEngine)
 
 	mainSrv := &http.Server{Addr: cfg.MainAddr, Handler: mainEngine}

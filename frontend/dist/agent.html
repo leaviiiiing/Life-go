@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<!-- 独立静态页，经 Nginx /api/agent/* 访问 agent-service；sessionId 见脚本 localStorage -->
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0">
+  <title>运维助手 - 消费社交生活服务平台</title>
+  <link rel="stylesheet" href="./css/element.css">
+  <style>
+    body { margin: 0; background: #f5f6fa; }
+    .agent-wrap { max-width: 640px; margin: 0 auto; padding: 16px; min-height: 100vh; box-sizing: border-box; }
+    .agent-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+    .agent-head a { color: #409EFF; text-decoration: none; font-size: 14px; }
+    .msg-list { background: #fff; border-radius: 8px; padding: 12px; min-height: 240px; max-height: 50vh; overflow-y: auto; margin-bottom: 12px; }
+    .msg { margin-bottom: 10px; font-size: 14px; line-height: 1.5; }
+    .msg.user { text-align: right; color: #303133; }
+    .msg.bot { text-align: left; color: #606266; }
+    .msg .label { font-size: 12px; color: #909399; margin-bottom: 4px; }
+    .session-tip { font-size: 12px; color: #909399; margin-top: 8px; }
+  </style>
+</head>
+<body>
+<div id="app" class="agent-wrap">
+  <div class="agent-head">
+    <span style="font-weight:600;">运维助手 · 消费社交生活服务平台</span>
+    <a href="/">回首页</a>
+  </div>
+  <div class="msg-list">
+    <div v-for="(m,i) in messages" :key="i" :class="'msg ' + m.role">
+      <div class="label">{{ m.role === 'user' ? '我' : '助手' }}</div>
+      <div>{{ m.text }}</div>
+    </div>
+    <div v-if="loading" class="msg bot"><div class="label">助手</div><div>思考中…</div></div>
+  </div>
+  <el-input type="textarea" :rows="3" v-model="input" placeholder="输入问题，例如：Kafka 死信怎么处理"></el-input>
+  <div style="margin-top:10px;">
+    <el-button type="primary" size="small" @click="send" :loading="loading">发送</el-button>
+    <el-button size="small" @click="clearSession">新会话</el-button>
+  </div>
+  <div class="session-tip" v-if="sessionId">sessionId: {{ sessionId }}（已存 localStorage）</div>
+</div>
+<script src="./js/vue.js"></script>
+<script src="./js/axios.min.js"></script>
+<script src="./js/element.js"></script>
+<script src="./js/common.js"></script>
+<script>
+  // axios.defaults.baseURL 为 /api，故 POST /agent/chat 即 /api/agent/chat
+  const STORAGE_KEY = 'agentSessionId';
+  new Vue({
+    el: '#app',
+    data() {
+      return {
+        input: '',
+        messages: [],
+        sessionId: localStorage.getItem(STORAGE_KEY) || '',
+        loading: false
+      };
+    },
+    methods: {
+      send() {
+        const text = (this.input || '').trim();
+        if (!text) {
+          this.$message.warning('请输入内容');
+          return;
+        }
+        this.messages.push({ role: 'user', text: text });
+        this.input = '';
+        this.loading = true;
+        axios.post('/agent/chat', {
+          sessionId: this.sessionId || null,
+          text: text
+        }).then((data) => {
+          if (data.sessionId) {
+            this.sessionId = data.sessionId;
+            localStorage.setItem(STORAGE_KEY, data.sessionId);
+          }
+          var src = ({ rule: '规则', llm: '模型', fallback: '默认' })[data.source] || data.source;
+          var reply = data.reply || '(无回复)';
+          if (src) reply += ' · ' + src;
+          this.messages.push({ role: 'bot', text: reply });
+        }).catch((err) => {
+          this.messages.push({ role: 'bot', text: '请求失败：' + (err || '网络错误') });
+        }).finally(() => {
+          this.loading = false;
+        });
+      },
+      clearSession() {
+        localStorage.removeItem(STORAGE_KEY);
+        this.sessionId = '';
+        this.messages = [];
+        this.$message.success('已清空会话');
+      }
+    }
+  });
+</script>
+</body>
+</html>
