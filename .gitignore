@@ -4,3 +4,4 @@ frontend/dist/hmdp-static.zip
 .vscode/
 *.exe
 .DS_Store
+server/docs/

@@ -13,7 +13,8 @@ services:
     command:
       - --default-authentication-plugin=mysql_native_password
     ports:
-      - "3306:3306"
+      # 避免与本机已安装的 MySQL 抢 3306；容器内仍为 3306，api 通过服务名访问
+      - "13306:3306"
     volumes:
       - mysql_data:/var/lib/mysql
       - ./mysql/init:/docker-entrypoint-initdb.d:ro
@@ -39,7 +40,8 @@ services:
       retries: 30
 
   kafka:
-    image: bitnami/kafka:3.6
+    # bitnami/kafka 短标签已从 Docker Hub 下架；使用 Bitnami Legacy 冻结镜像（KRaft 环境变量与旧 compose 一致）
+    image: bitnamilegacy/kafka:3.6.2-debian-12-r14
     container_name: life-go-kafka
     restart: unless-stopped
     environment:
@@ -66,6 +68,10 @@ services:
     build:
       context: ../server
       dockerfile: Dockerfile
+      args:
+        # 国内常见加速；若你可直连 Docker Hub，可改为 golang:1.22-alpine / alpine:3.19
+        GO_BUILD_IMAGE: docker.m.daocloud.io/library/golang:1.22-alpine
+        RUNTIME_IMAGE: docker.m.daocloud.io/library/alpine:3.19
     container_name: life-go-api
     restart: unless-stopped
     environment:
